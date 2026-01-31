@@ -4,11 +4,12 @@
     "license": "GPL-3.0",
     "scripts": {
         "clean": "rm -rf ./addons-dist",
-        "build:ff": "web-ext -s ./src -a ./addons-dist build",
+        "build-firefox": "web-ext -s ./src -a ./addons-dist build",
         "build:chrome": "crx pack ./src -p ./key.pem -o ./addons-dist/spookfox.crx",
-        "build:addon": "mkdir -p ./addons-dist && npm run build:chrome && npm run build:ff",
+        "build:addon": "mkdir -p ./addons-dist && npm run build:chrome && npm run build-firefox",
         "build": "npm run clean && npm run build:addon",
-        "publish:ff-unlisted": "web-ext -s ./src -a ./addons-dist --api-key $FIREFOX_ADDON_KEY --api-secret $FIREFOX_ADDON_SECRET sign --channel=unlisted"
+        "publish:ff-unlisted": "web-ext -s ./src -a ./addons-dist --api-key $FIREFOX_ADDON_KEY --api-secret $FIREFOX_ADDON_SECRET sign --channel=unlisted",
+        "test-firefox-ws": "web-ext -s ./src run --firefox-profile $FIREFOX_PROFILE_DIR --browser-console"
     },
     "devDependencies": {
         "crx": "5.0.1",

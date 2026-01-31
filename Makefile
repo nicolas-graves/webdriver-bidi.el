@@ -1,71 +1,97 @@
-# Makefile for webdriver-bidi.el
+# Makefile for webdriver-bidi.el, and Firefox Extensions
 
 EMACS ?= emacs
 EMACS_BATCH = $(EMACS) -Q --batch
 
 # Browser configuration
 BIDI_PORT ?= 9222
+BIDI_WS_PORT ?= 9333
 BIDI_URL ?= ws://localhost:$(BIDI_PORT)/session
 
-# Browser executables (override as needed)
-FIREFOX ?= guix shell firefox -- firefox --profile=.cache/firefox/
-CHROMEDRIVER ?= guix shell ungoogled-chromium -- chromedriver
+# Executables
+FIREFOX ?= firefox
+CHROMEDRIVER ?= chromedriver
+WEB_EXT ?= web-ext
+FIREFOX_PROFILE_DIR ?= $(HOME)/.cache/webdriver-bidi-test-profile
+
+# Build directories
+BUILD_DIR = build
+ADDON_SRC = addon/src
+ADDON_BUILD_NATIVE = $(BUILD_DIR)/addon-native
+NATIVE_BIN = $(BUILD_DIR)/$(NATIVE_APP_NAME)
 
 # Timeout for browser startup
 BROWSER_STARTUP_WAIT ?= 3
 
 # PID files for cleanup
 BROWSER_PID_FILE = .browser.pid
+WS_SERVER_PID_FILE = .ws-server.pid
 
-.PHONY: all test test-firefox test-chromium clean help
-.PHONY: start-firefox stop-firefox start-chromium stop-chromium
-.PHONY: compile lint
+# Mark targets that don't create files
+.PHONY: all build clean help build-native-bin
+.PHONY: install-web-ext
+.PHONY: test test-ws test-native test-native-relay
+.PHONY: start-firefox-ws stop-firefox
+.PHONY:	start-chromium stop-chromium test-chromium
+.PHONY: setup-test-profile
 
-all: compile test
+#
+# Build directory
+#
 
-help:
-	@echo "webdriver-bidi.el Makefile"
-	@echo ""
-	@echo "Targets:"
-	@echo "  test-firefox   - Run tests with Firefox"
-	@echo "  test-chromium  - Run tests with ChromeDriver"
-	@echo "  test           - Run tests (requires browser already running)"
-	@echo "  compile        - Byte-compile the library"
-	@echo "  lint           - Run package-lint"
-	@echo "  clean          - Clean generated files"
-	@echo ""
-	@echo "Browser control:"
-	@echo "  start-firefox  - Start Firefox with BiDi enabled"
-	@echo "  stop-firefox   - Stop Firefox"
-	@echo "  start-chromium - Start ChromeDriver"
-	@echo "  stop-chromium  - Stop ChromeDriver"
-	@echo ""
-	@echo "Variables:"
-	@echo "  EMACS=$(EMACS)"
-	@echo "  BIDI_PORT=$(BIDI_PORT)"
-	@echo "  FIREFOX=$(FIREFOX)"
-	@echo "  CHROMEDRIVER=$(CHROMEDRIVER)"
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-# Byte compilation
-compile: webdriver-bidi.elc
+#
+# Native relay binary
+#
 
-webdriver-bidi.elc: webdriver-bidi.el
-	$(EMACS_BATCH) \
-		-L . \
-		--eval "(setq byte-compile-error-on-warn t)" \
-		-f batch-byte-compile $<
+$(NATIVE_BIN): addon/c/native_relay.c | $(BUILD_DIR)
+	gcc -O2 -Wall -Wextra -o $(NATIVE_BIN) addon/c/native_relay.c -lpthread
+	chmod +x $(NATIVE_BIN)
 
-# Linting (requires package-lint)
-lint:
-	$(EMACS_BATCH) \
-		-L . \
-		--eval "(require 'package)" \
-		--eval "(package-initialize)" \
-		--eval "(require 'package-lint)" \
-		-f package-lint-batch-and-exit \
-		webdriver-bidi.el
+build-native-bin: $(NATIVE_BIN)
 
-# Run tests (assumes browser is already running)
+
+#
+# Native messaging installation
+#
+install-web-ext:
+	cd addon
+	npm install --local
+	cd ..
+
+#
+# Test Firefox profile setup
+#
+
+$(FIREFOX_PROFILE_DIR):
+	mkdir -p $(FIREFOX_PROFILE_DIR)
+
+setup-test-profile: $(FIREFOX_PROFILE_DIR)
+	@echo "Setting up test profile at $(FIREFOX_PROFILE_DIR)"
+	@echo 'user_pref("browser.shell.checkDefaultBrowser", false);' > $(FIREFOX_PROFILE_DIR)/user.js
+	@echo 'user_pref("browser.startup.homepage_override.mstone", "ignore");' >> $(FIREFOX_PROFILE_DIR)/user.js
+	@echo 'user_pref("datareporting.policy.dataSubmissionEnabled", false);' >> $(FIREFOX_PROFILE_DIR)/user.js
+	@echo 'user_pref("toolkit.telemetry.reportingpolicy.firstRun", false);' >> $(FIREFOX_PROFILE_DIR)/user.js
+
+#
+# Browser control
+#
+
+start-firefox-ws: setup-test-profile
+	@echo "Starting Firefox with WebSocket extension..."
+	cd addon && \
+		npm run test-firefox-ws \
+		>/dev/null 2>&1 & echo $$! > $(BROWSER_PID_FILE)
+	cd ..
+	@echo "Waiting $(BROWSER_STARTUP_WAIT)s for Firefox to start..."
+	@sleep $(BROWSER_STARTUP_WAIT)
+	@echo "Firefox started (PID: $$(cat $(BROWSER_PID_FILE)))"
+
+#
+# Testing
+#
 test:
 	$(EMACS_BATCH) \
 		-L . \
@@ -121,43 +147,24 @@ test-chromium: start-chromium
 		($(MAKE) stop-chromium && exit 1)
 	@$(MAKE) stop-chromium
 
-# Run specific test
-test-one:
-ifndef TEST
-	$(error TEST is not set. Usage: make test-one TEST=webdriver-bidi-test-connect)
-endif
+# Run Emacs tests with WebSocket
+test-ws: start-firefox-ws
+	@echo "Running WebSocket tests..."
+	@sleep 2
 	$(EMACS_BATCH) \
 		-L . \
 		-l ert \
 		-l websocket \
 		-l webdriver-bidi.el \
-		-l webdriver-bidi-test.el \
-		--eval "(setq webdriver-bidi-test-url \"$(BIDI_URL)\")" \
-		--eval "(ert-run-tests-batch-and-exit '$(TEST))"
+		-l webdriver-bidi-extension-test.el \
+		--eval "(webdriver-bidi-test-start-server)" \
+		--eval "(sleep-for 3)" \
+		--eval "(ert-run-tests-batch-and-exit '(tag :extension))" || \
+		($(MAKE) stop-firefox && exit 1)
+	@$(MAKE) stop-firefox
 
-# Interactive test runner
-test-interactive:
-	$(EMACS) -Q \
-		-L . \
-		-l websocket \
-		-l webdriver-bidi.el \
-		-l webdriver-bidi-test.el \
-		--eval "(setq webdriver-bidi-test-url \"$(BIDI_URL)\")" \
-		--eval "(setq webdriver-bidi-debug t)" \
-		--eval "(ert t)"
-
-# Clean up
 clean:
-	rm -f *.elc
-	rm -f $(BROWSER_PID_FILE)
-	rm -rf /tmp/tmp.*  # Clean temp profiles (be careful with this)
-
-# CI target - run both browsers
-ci: compile
-	@echo "=== Testing with Firefox ==="
-	$(MAKE) test-firefox || exit 1
-	@echo ""
-	@echo "=== Testing with Chromium ==="
-	$(MAKE) test-chromium || exit 1
-	@echo ""
-	@echo "=== All tests passed ==="
+	rm -rf $(BUILD_DIR)
+	rm -f $(BROWSER_PID_FILE) $(WS_SERVER_PID_FILE)
+	rm -rf $(FIREFOX_PROFILE_DIR)
+	@echo "Cleaned all artifacts"

@@ -1,6 +1,6 @@
 // background.js - Minimal BiDi-like server
 
-const WS_URL = 'ws://localhost:9222';
+const WS_URL = 'ws://localhost:9333';
 let ws = null;
 
 // BiDi command handlers
