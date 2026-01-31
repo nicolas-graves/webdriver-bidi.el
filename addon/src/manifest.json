@@ -1,0 +1,56 @@
+{
+  "description": "Make web-browsers speak to Emacs",
+  "manifest_version": 2,
+  "name": "Spookfox",
+  "version": "0.8.1",
+  "icons": {
+    "48": "icons/emacs-color.png",
+    "96": "icons/emacs-color@2x.png",
+    "192": "icons/emacs-color@4x.png"
+  },
+  "browser_specific_settings": {
+    "chrome": {
+      "id": "kkmebdchecbibghcdoohhffiogjcfcno"
+    },
+    "gecko": {
+      "id": "spookfox@bitspook.in",
+      "strict_min_version": "102.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "background": {
+    "scripts": [
+      "./vendor/browser-polyfill.js",
+      "./background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "./vendor/browser-polyfill.js",
+        "content.js"
+      ]
+    }
+  ],
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/emacs-mono.png",
+      "96": "icons/emacs-color@4x.png",
+      "192": "icons/emacs-mono@2x.png"
+    },
+    "default_title": "Spookfox"
+  },
+  "permissions": [
+    "<all_urls>",
+    "tabs",
+    "search",
+    "scripting"
+  ],
+  "web_accessible_resources": [],
+  "content_security_policy": "script-src 'self' blob: filesystem: 'unsafe-eval';object-src 'self' blob: filesystem:;"
+}
