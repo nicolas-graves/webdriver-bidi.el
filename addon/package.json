@@ -13,7 +13,6 @@
     },
     "devDependencies": {
         "crx": "5.0.1",
-        "prettier": "3.3.3",
         "web-ext": "8.2.0",
         "webextension-polyfill": "0.12.0"
     },
