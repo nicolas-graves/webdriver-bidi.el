@@ -1,66 +1,10 @@
-// background.js - Minimal BiDi-like server
-
 const WS_URL = 'ws://localhost:9333';
 let ws = null;
-
-// BiDi command handlers
-const handlers = {
-  'browsingContext.getTree': async (params) => {
-    const tabs = await browser.tabs.query({});
-    return {
-      contexts: tabs.map(tab => ({
-        context: String(tab.id),
-        url: tab.url,
-        title: tab.title,
-        // BiDi-compatible fields
-        parent: null,
-        children: []
-      }))
-    };
-  },
-
-  'browsingContext.activate': async (params) => {
-    const tabId = parseInt(params.context, 10);
-    const tab = await browser.tabs.get(tabId);
-    await browser.tabs.update(tabId, { active: true });
-    await browser.windows.update(tab.windowId, { focused: true });
-    return {};
-  },
-
-'browsingContext.create': async (params) => {
-  const type = params.type || 'tab';
-  let newTab;
-
-  if (type === 'tab') {
-    newTab = await browser.tabs.create({ active: false });
-  } else if (type === 'window') {
-    const win = await browser.windows.create({});
-    const tabs = await browser.tabs.query({ windowId: win.id });
-    newTab = tabs[0];
-  } else {
-    throw new Error(`Unsupported type: ${type}`);
-  }
-
-  return { context: String(newTab.id) };
-},
-
-  'browsingContext.close': async (params) => {
-    const tabId = parseInt(params.context, 10);
-    await browser.tabs.remove(tabId);
-    return {};
-  },
-
-  'browsingContext.navigate': async (params) => {
-    const tabId = parseInt(params.context, 10);
-    await browser.tabs.update(tabId, { url: params.url });
-    return { navigation: null, url: params.url };
-  }
-};
 
 async function handleMessage(event) {
   try {
     const msg = JSON.parse(event.data);
-    const handler = handlers[msg.method];
+    const handler = BiDiHandlers[msg.method];
 
     if (!handler) {
       ws.send(JSON.stringify({
@@ -74,13 +18,29 @@ async function handleMessage(event) {
     ws.send(JSON.stringify({ id: msg.id, result }));
   } catch (err) {
     console.error('BiDi error:', err);
+    ws.send(JSON.stringify({
+      id: msg?.id,
+      error: { code: -32603, message: err.message }
+    }));
   }
 }
 
 function connect() {
   ws = new WebSocket(WS_URL);
-  ws.onopen = () => console.log('Connected to Emacs');
-  ws.onclose = () => setTimeout(connect, 3000); // Auto-reconnect
+
+  ws.onopen = () => {
+    console.log('Connected to Emacs');
+  };
+
+  ws.onclose = () => {
+    console.log('Disconnected from Emacs');
+    setTimeout(connect, 3000);
+  };
+
+  ws.onerror = (err) => {
+    console.error('WebSocket error:', err);
+  };
+
   ws.onmessage = handleMessage;
 }
 
