@@ -2,3 +2,4 @@
 addon*/node_modules
 addon*/addons-dist
 addon*/package-lock.json
+addon-native/build

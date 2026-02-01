@@ -15,10 +15,10 @@ WEB_EXT ?= web-ext
 FIREFOX_PROFILE_DIR ?= $(HOME)/.cache/webdriver-bidi-test-profile
 
 # Build directories
-BUILD_DIR = build
 ADDON_SRC = addon-ws/src
-ADDON_BUILD_NATIVE = $(BUILD_DIR)/addon-native
-NATIVE_BIN = $(BUILD_DIR)/$(NATIVE_APP_NAME)
+ADDON_BUILD_NATIVE = addon-native
+BUILD_DIR = $(ADDON_BUILD_NATIVE)/build
+NATIVE_BIN = $(BUILD_DIR)/native-relay
 
 # Timeout for browser startup
 BROWSER_STARTUP_WAIT ?= 3
