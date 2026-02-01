@@ -1,0 +1,7 @@
+{
+    "name": "webdriver_bidi_socket",
+    "description": "Example host for native messaging",
+    "path": "/home/graves/projects/src/webdriver-bidi/addon-native/build/native-relay",
+    "type": "stdio",
+    "allowed_extensions": ["spookfox@bitspook.in"]
+}

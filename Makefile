@@ -15,9 +15,9 @@ WEB_EXT ?= web-ext
 FIREFOX_PROFILE_DIR ?= $(HOME)/.cache/webdriver-bidi-test-profile
 
 # Build directories
-ADDON_SRC = addon-ws/src
-ADDON_BUILD_NATIVE = addon-native
-BUILD_DIR = $(ADDON_BUILD_NATIVE)/build
+ADDON_WS = addon-ws
+ADDON_NATIVE = addon-native
+BUILD_DIR = $(ADDON_NATIVE)/build
 NATIVE_BIN = $(BUILD_DIR)/native-relay
 
 # Timeout for browser startup
@@ -177,6 +177,8 @@ test-native: start-firefox-native
 		-l websocket \
 		-l webdriver-bidi.el \
 		-l webdriver-bidi-test.el \
+		--eval "(setq webdriver-bidi-test-mode 'native)" \
+		--eval "(sleep-for 3)" \
 		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
 	@$(MAKE) stop-firefox
 

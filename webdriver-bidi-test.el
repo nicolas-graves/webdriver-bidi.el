@@ -124,7 +124,7 @@
          (id (alist-get 'id data)))
     (puthash id data webdriver-bidi-test-ext-responses)))
 
-(defun webdriver-bidi-test-ext-send (method &optional params)
+(defun webdriver-bidi-test-ext--send-ws (method &optional params)
   "Send METHOD with PARAMS to extension, return result synchronously."
   ;; (unless webdriver-bidi-test-ext-client
   ;;   (error "No extension connected"))
@@ -141,6 +141,45 @@
       (if (alist-get 'error response)
           (cons nil (alist-get 'error response))
         (cons (alist-get 'result response) nil)))))
+
+(defun webdriver-bidi-test-native--send (method &optional params)
+  "Send METHOD with PARAMS via Unix socket, return (result . error)."
+  (let* ((id (cl-incf webdriver-bidi-test-ext-counter))
+         (msg (concat (json-encode `((id . ,id)
+                                     (method . ,method)
+                                     (params . ,(or params (make-hash-table)))))
+                      "\n"))
+         (proc (make-network-process
+                :name "bidi-client"
+                :family 'local
+                :service "/tmp/bidi.sock"
+                :buffer (generate-new-buffer " *bidi-response*" t)
+                :coding 'utf-8))
+         response data)
+    (unwind-protect
+        (progn
+          (process-send-string proc msg)
+          (with-timeout (5 (error "Native socket timeout"))
+            (while (not (string-match-p "\n" (with-current-buffer (process-buffer proc)
+                                               (buffer-string))))
+              (accept-process-output proc 0.1)))
+          (setq response (with-current-buffer (process-buffer proc)
+                           (string-trim (buffer-string))))
+          (when (process-buffer proc)
+            (kill-buffer (process-buffer proc)))
+          (message response)
+          (setq data (json-parse-string response :object-type 'alist))
+          (if (alist-get 'error data)
+              (cons nil (alist-get 'error data))
+            (cons (alist-get 'result data) nil)))
+      (delete-process proc))))
+
+(defun webdriver-bidi-test-ext-send (method &optional params)
+  "Send METHOD with PARAMS using current test mode."
+  (pcase webdriver-bidi-test-mode
+    ('native (webdriver-bidi-test-native--send method params))
+    ('extension (webdriver-bidi-test-ext--send-ws method params))
+    (_ (webdriver-bidi-test-ext--send-ws method params))))
 
 ;;; ===========================================================================
 ;;; Connection Tests
@@ -446,7 +485,8 @@
 (ert-deftest webdriver-bidi-test-extension-create ()
   "Test opening a tab to google.com and verifying it exists."
   :tags '(:extension)
-  (skip-unless webdriver-bidi-test-ext-client)
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (let* ((create-result (webdriver-bidi-test-ext-send "browsingContext.create"
                                                       '((type . "tab"))))
          (context (alist-get 'context (car create-result))))
@@ -460,7 +500,8 @@
 (ert-deftest webdriver-bidi-test-extension-navigate-and-verify ()
   "Test opening a tab to google.com and verifying it exists."
   :tags '(:extension)
-  (skip-unless webdriver-bidi-test-ext-client)
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (let* ((create-result (webdriver-bidi-test-ext-send "browsingContext.create"
                                                       '((type . "tab"))))
          (context (alist-get 'context (car create-result))))
@@ -482,7 +523,8 @@
 (ert-deftest webdriver-bidi-test-extension-activate-tab ()
   "Test opening two tabs and activating the second."
   :tags '(:extension)
-  (skip-unless webdriver-bidi-test-ext-client)
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (let* ((tab1 (alist-get 'context (car (webdriver-bidi-test-ext-send
                                          "browsingContext.create"
                                          '((type . "tab"))))))
