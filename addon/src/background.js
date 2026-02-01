@@ -27,6 +27,23 @@ const handlers = {
     return {};
   },
 
+'browsingContext.create': async (params) => {
+  const type = params.type || 'tab';
+  let newTab;
+
+  if (type === 'tab') {
+    newTab = await browser.tabs.create({ active: false });
+  } else if (type === 'window') {
+    const win = await browser.windows.create({});
+    const tabs = await browser.tabs.query({ windowId: win.id });
+    newTab = tabs[0];
+  } else {
+    throw new Error(`Unsupported type: ${type}`);
+  }
+
+  return { context: String(newTab.id) };
+},
+
   'browsingContext.close': async (params) => {
     const tabId = parseInt(params.context, 10);
     await browser.tabs.remove(tabId);

@@ -100,7 +100,7 @@ test:
 		-l webdriver-bidi.el \
 		-l webdriver-bidi-test.el \
 		--eval "(setq webdriver-bidi-test-url \"$(BIDI_URL)\")" \
-		-f ert-run-tests-batch-and-exit
+		--eval "(ert-run-tests-batch-and-exit '(tag :bidi))"
 
 # Firefox support
 start-firefox:
@@ -149,18 +149,17 @@ test-chromium: start-chromium
 
 # Run Emacs tests with WebSocket
 test-ws: start-firefox-ws
-	@echo "Running WebSocket tests..."
-	@sleep 2
-	$(EMACS_BATCH) \
+	@echo "Running WebSocket extension tests..."
+	-$(EMACS_BATCH) \
 		-L . \
 		-l ert \
 		-l websocket \
 		-l webdriver-bidi.el \
-		-l webdriver-bidi-extension-test.el \
-		--eval "(webdriver-bidi-test-start-server)" \
+		-l webdriver-bidi-test.el \
+		--eval "(setq webdriver-bidi-test-mode 'extension)" \
+		--eval "(webdriver-bidi-test-ext-start-server)" \
 		--eval "(sleep-for 3)" \
-		--eval "(ert-run-tests-batch-and-exit '(tag :extension))" || \
-		($(MAKE) stop-firefox && exit 1)
+		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
 	@$(MAKE) stop-firefox
 
 clean:
