@@ -100,7 +100,29 @@ const BiDiHandlers = {
   }
 };
 
+// Process a BiDi message and return a response
+async function handleBiDiMessage(msg) {
+  const handler = BiDiHandlers[msg.method];
+
+  if (!handler) {
+    return {
+      id: msg.id,
+      error: { code: -32601, message: `Unknown method: ${msg.method}` }
+    };
+  }
+
+  try {
+    const result = await handler(msg.params || {});
+    return { id: msg.id, result };
+  } catch (err) {
+    return {
+      id: msg.id,
+      error: { code: -32603, message: err.message || 'Internal error' }
+    };
+  }
+}
+
 // Export for use in different backends
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { BiDiHandlers };
+  module.exports = { BiDiHandlers, handleBiDiMessage };
 }

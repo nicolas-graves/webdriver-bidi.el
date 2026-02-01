@@ -89,6 +89,17 @@ start-firefox-ws: setup-test-profile
 	@sleep $(BROWSER_STARTUP_WAIT)
 	@echo "Firefox started (PID: $$(cat $(BROWSER_PID_FILE)))"
 
+
+start-firefox-native: setup-test-profile
+	@echo "Starting Firefox with Native messaging extension..."
+	cd addon-native && \
+		npm run test-firefox-native \
+		>/dev/null 2>&1 & echo $$! > $(BROWSER_PID_FILE)
+	cd ..
+	@echo "Waiting $(BROWSER_STARTUP_WAIT)s for Firefox to start..."
+	@sleep $(BROWSER_STARTUP_WAIT)
+	@echo "Firefox started (PID: $$(cat $(BROWSER_PID_FILE)))"
+
 #
 # Testing
 #
@@ -147,7 +158,7 @@ test-chromium: start-chromium
 		($(MAKE) stop-chromium && exit 1)
 	@$(MAKE) stop-chromium
 
-# Run Emacs tests with WebSocket
+# Run Emacs tests with extensions
 test-ws: start-firefox-ws
 	@echo "Running WebSocket extension tests..."
 	-$(EMACS_BATCH) \
@@ -159,6 +170,17 @@ test-ws: start-firefox-ws
 		--eval "(setq webdriver-bidi-test-mode 'extension)" \
 		--eval "(webdriver-bidi-test-ext-start-server)" \
 		--eval "(sleep-for 3)" \
+		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
+	@$(MAKE) stop-firefox
+
+test-native: start-firefox-native
+	@echo "Running WebSocket extension tests..."
+	-$(EMACS_BATCH) \
+		-L . \
+		-l ert \
+		-l websocket \
+		-l webdriver-bidi.el \
+		-l webdriver-bidi-test.el \
 		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
 	@$(MAKE) stop-firefox
 

@@ -126,8 +126,8 @@
 
 (defun webdriver-bidi-test-ext-send (method &optional params)
   "Send METHOD with PARAMS to extension, return result synchronously."
-  (unless webdriver-bidi-test-ext-client
-    (error "No extension connected"))
+  ;; (unless webdriver-bidi-test-ext-client
+  ;;   (error "No extension connected"))
   (let* ((id (cl-incf webdriver-bidi-test-ext-counter))
          (msg `((id . ,id)
                 (method . ,method)
