@@ -1,4 +1,4 @@
 .cache
-addon/node_modules
-addon/addons-dist
-addon/package-lock.json
+addon*/node_modules
+addon*/addons-dist
+addon*/package-lock.json

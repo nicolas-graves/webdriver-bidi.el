@@ -16,7 +16,7 @@ FIREFOX_PROFILE_DIR ?= $(HOME)/.cache/webdriver-bidi-test-profile
 
 # Build directories
 BUILD_DIR = build
-ADDON_SRC = addon/src
+ADDON_SRC = addon-ws/src
 ADDON_BUILD_NATIVE = $(BUILD_DIR)/addon-native
 NATIVE_BIN = $(BUILD_DIR)/$(NATIVE_APP_NAME)
 
@@ -46,8 +46,8 @@ $(BUILD_DIR):
 # Native relay binary
 #
 
-$(NATIVE_BIN): addon/c/native_relay.c | $(BUILD_DIR)
-	gcc -O2 -Wall -Wextra -o $(NATIVE_BIN) addon/c/native_relay.c -lpthread
+$(NATIVE_BIN): addon-native/c/native_relay.c | $(BUILD_DIR)
+	gcc -O2 -Wall -Wextra -o $(NATIVE_BIN) addon-native/c/native_relay.c -lpthread
 	chmod +x $(NATIVE_BIN)
 
 build-native-bin: $(NATIVE_BIN)
@@ -57,7 +57,7 @@ build-native-bin: $(NATIVE_BIN)
 # Native messaging installation
 #
 install-web-ext:
-	cd addon
+	cd addon-native
 	npm install --local
 	cd ..
 
@@ -81,7 +81,7 @@ setup-test-profile: $(FIREFOX_PROFILE_DIR)
 
 start-firefox-ws: setup-test-profile
 	@echo "Starting Firefox with WebSocket extension..."
-	cd addon && \
+	cd addon-ws && \
 		npm run test-firefox-ws \
 		>/dev/null 2>&1 & echo $$! > $(BROWSER_PID_FILE)
 	cd ..
