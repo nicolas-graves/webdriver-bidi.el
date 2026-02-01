@@ -79,10 +79,10 @@ setup-test-profile: $(FIREFOX_PROFILE_DIR)
 # Browser control
 #
 
-start-firefox-ws: setup-test-profile
+start-firefox-ext: setup-test-profile
 	@echo "Starting Firefox with WebSocket extension..."
-	cd addon-ws && \
-		npm run test-firefox-ws \
+	cd $(ADDON) && \
+		npm run test-firefox-ext \
 		>/dev/null 2>&1 & echo $$! > $(BROWSER_PID_FILE)
 	cd ..
 	@echo "Waiting $(BROWSER_STARTUP_WAIT)s for Firefox to start..."
@@ -90,15 +90,11 @@ start-firefox-ws: setup-test-profile
 	@echo "Firefox started (PID: $$(cat $(BROWSER_PID_FILE)))"
 
 
-start-firefox-native: setup-test-profile
-	@echo "Starting Firefox with Native messaging extension..."
-	cd addon-native && \
-		npm run test-firefox-native \
-		>/dev/null 2>&1 & echo $$! > $(BROWSER_PID_FILE)
-	cd ..
-	@echo "Waiting $(BROWSER_STARTUP_WAIT)s for Firefox to start..."
-	@sleep $(BROWSER_STARTUP_WAIT)
-	@echo "Firefox started (PID: $$(cat $(BROWSER_PID_FILE)))"
+start-firefox-ws:
+	@$(MAKE) start-firefox-ext ADDON="addon-ws"
+
+start-firefox-native:
+	@$(MAKE) start-firefox-ext ADDON="addon-native"
 
 #
 # Testing
