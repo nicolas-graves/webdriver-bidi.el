@@ -250,7 +250,6 @@
 
 (ert-deftest webdriver-bidi-test-get-tree ()
   "Test browsingContext.getTree command."
-  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
    (let ((result (webdriver-bidi-test-send "browsingContext.getTree"
                                                 '((maxDepth . 0)))))
@@ -479,17 +478,6 @@
 ;;; ===========================================================================
 ;;; Extension Mode Tests (WebSocket)
 ;;; ===========================================================================
-
-(ert-deftest webdriver-bidi-test-extension-get-tabs ()
-  "Test getting tabs via WebSocket extension."
-  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
-                 (and (eq webdriver-bidi-test-mode 'extension)
-                      (not webdriver-bidi-test-ext-client))))
-  (webdriver-bidi-test-with-setup
-   (let ((result (webdriver-bidi-test-send "browsingContext.getTree"
-                                           '((maxDepth . 0)))))
-     (should result)
-     (should (alist-get 'contexts result)))))
 
 (ert-deftest webdriver-bidi-test-extension-create ()
   "Test opening a tab to google.com and verifying it exists."
