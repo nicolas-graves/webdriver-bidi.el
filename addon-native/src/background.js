@@ -1,7 +1,7 @@
 // background-native.js - Native Messaging-based BiDi communication
 // Uses bidi.js handlers, connects to native app via runtime.connectNative
 
-const NATIVE_APP_NAME = 'webdriver_bidi_socket';
+const NATIVE_APP_NAME = 'native_messaging_socat';
 let port = null;
 
 // Handle incoming message from native app

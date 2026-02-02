@@ -1,0 +1,7 @@
+{
+    "name": "native_messaging_socat",
+    "description": "Socat-like native messaging",
+    "path": "/home/graves/projects/src/native-messaging-socat/rust/target/release/native-messaging-socat",
+    "type": "stdio",
+    "allowed_extensions": ["spookfox@bitspook.in"]
+}
