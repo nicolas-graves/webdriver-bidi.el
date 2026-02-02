@@ -481,9 +481,8 @@
 
 (ert-deftest webdriver-bidi-test-extension-create ()
   "Test opening a tab to google.com and verifying it exists."
-  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
-                 (and (eq webdriver-bidi-test-mode 'extension)
-                      (not webdriver-bidi-test-ext-client))))
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (webdriver-bidi-test-with-setup
    (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
                                                    '((type . "tab"))))
@@ -497,9 +496,8 @@
 
 (ert-deftest webdriver-bidi-test-extension-navigate-and-verify ()
   "Test opening a tab to google.com and verifying it exists."
-  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
-                 (and (eq webdriver-bidi-test-mode 'extension)
-                      (not webdriver-bidi-test-ext-client))))
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (webdriver-bidi-test-with-setup
    (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
                                                    '((type . "tab"))))
@@ -521,9 +519,8 @@
 
 (ert-deftest webdriver-bidi-test-extension-activate-tab ()
   "Test opening two tabs and activating the second."
-  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
-                 (and (eq webdriver-bidi-test-mode 'extension)
-                      (not webdriver-bidi-test-ext-client))))
+  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
+                  (not webdriver-bidi-test-ext-client)))
   (webdriver-bidi-test-with-setup
    (let* ((tab1 (alist-get 'context (webdriver-bidi-test-send
                                      "browsingContext.create"
