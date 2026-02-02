@@ -71,8 +71,8 @@
 
 (defun webdriver-bidi-test-get-context ()
   "Get first available browsing context via BiDi."
-  (let* ((result (webdriver-bidi-test-bidi-send "browsingContext.getTree"
-                                                '((maxDepth . 0))))
+  (let* ((result (webdriver-bidi-test-send "browsingContext.getTree"
+                                           '((maxDepth . 0))))
          (contexts (alist-get 'contexts result)))
     (when (and contexts (> (length contexts) 0))
       (alist-get 'context (aref contexts 0)))))
@@ -271,7 +271,6 @@
 
 (ert-deftest webdriver-bidi-test-navigate ()
   "Test browsingContext.navigate command."
-  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-get-context)))
      (should context)
@@ -285,7 +284,6 @@
 
 (ert-deftest webdriver-bidi-test-navigate-to-url ()
   "Test navigation to a real URL."
-  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-get-context)))
      (should context)
@@ -295,7 +293,8 @@
                       (url . "https://example.com")
                       (wait . "complete")))))
        (should result)
-       (should (alist-get 'url result))))))
+       (should (alist-get 'url result))
+       (should (string-match-p "example" (alist-get 'url result)))))))
 
 ;;; ===========================================================================
 ;;; Script Tests
@@ -491,29 +490,6 @@
           (contexts (alist-get 'contexts tree))
           (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
      (should (= (length urls) 2))
-     (webdriver-bidi-test-send "browsingContext.close"
-                               `((context . ,context))))))
-
-(ert-deftest webdriver-bidi-test-extension-navigate-and-verify ()
-  "Test opening a tab to google.com and verifying it exists."
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (webdriver-bidi-test-with-setup
-   (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
-                                                   '((type . "tab"))))
-          (context (alist-get 'context create-result)))
-     (webdriver-bidi-test-send "browsingContext.navigate"
-                               `((context . ,context)
-                                 (url . "https://www.google.com")
-                                 (wait . "complete")))
-     (let* ((tree (webdriver-bidi-test-send "browsingContext.getTree"))
-            (contexts (alist-get 'contexts tree))
-            (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
-       (should (= (length urls) 2))
-       ;; XXX: Since the tab has not been activated, it's still read as
-       ;; about:newtab
-       ;; (should (seq-some (lambda (u) (string-match-p "google" u)) urls))
-       )
      (webdriver-bidi-test-send "browsingContext.close"
                                `((context . ,context))))))
 
