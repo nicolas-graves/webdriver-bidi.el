@@ -258,7 +258,6 @@
 
 (ert-deftest webdriver-bidi-test-create-and-close-context ()
   "Test creating and closing a browsing context."
-  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
    ;; Create new tab
    (let* ((result (webdriver-bidi-test-send "browsingContext.create"
@@ -477,21 +476,6 @@
 ;;; ===========================================================================
 ;;; Extension Mode Tests (WebSocket)
 ;;; ===========================================================================
-
-(ert-deftest webdriver-bidi-test-extension-create ()
-  "Test opening a tab to google.com and verifying it exists."
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (webdriver-bidi-test-with-setup
-   (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
-                                                   '((type . "tab"))))
-          (context (alist-get 'context create-result))
-          (tree (webdriver-bidi-test-send "browsingContext.getTree"))
-          (contexts (alist-get 'contexts tree))
-          (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
-     (should (= (length urls) 2))
-     (webdriver-bidi-test-send "browsingContext.close"
-                               `((context . ,context))))))
 
 (ert-deftest webdriver-bidi-test-extension-activate-tab ()
   "Test opening two tabs and activating the second."
