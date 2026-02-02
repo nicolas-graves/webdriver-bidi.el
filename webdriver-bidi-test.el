@@ -152,7 +152,7 @@
          (proc (make-network-process
                 :name "bidi-client"
                 :family 'local
-                :service "/tmp/bidi.sock"
+                :service "/tmp/native_messaging_socat.sock"
                 :buffer (generate-new-buffer " *bidi-response*" t)
                 :coding 'utf-8))
          response data)
