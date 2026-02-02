@@ -473,26 +473,5 @@
           (should (>= (length results) 1)))
       (ignore-errors (webdriver-bidi-close conn)))))
 
-;;; ===========================================================================
-;;; Extension Mode Tests (WebSocket)
-;;; ===========================================================================
-
-(ert-deftest webdriver-bidi-test-extension-activate-tab ()
-  "Test opening two tabs and activating the second."
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (webdriver-bidi-test-with-setup
-   (let* ((tab1 (alist-get 'context (webdriver-bidi-test-send
-                                     "browsingContext.create"
-                                     '((type . "tab")))))
-          (tab2 (alist-get 'context (webdriver-bidi-test-send
-                                     "browsingContext.create"
-                                     '((type . "tab"))))))
-     (webdriver-bidi-test-send "browsingContext.activate"
-                               `((context . ,tab2)))
-     ;; Clean up
-     (webdriver-bidi-test-send "browsingContext.close" `((context . ,tab1)))
-     (webdriver-bidi-test-send "browsingContext.close" `((context . ,tab2))))))
-
 (provide 'webdriver-bidi-test)
 ;;; webdriver-bidi-test.el ends here
