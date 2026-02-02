@@ -139,8 +139,8 @@
     (let ((response (gethash id webdriver-bidi-test-ext-responses)))
       (remhash id webdriver-bidi-test-ext-responses)
       (if (alist-get 'error response)
-          (cons nil (alist-get 'error response))
-        (cons (alist-get 'result response) nil)))))
+          (error "Extension error: %S" (alist-get 'error response))
+        (alist-get 'result response)))))
 
 (defun webdriver-bidi-test-native--send (method &optional params)
   "Send METHOD with PARAMS via Unix socket, return (result . error)."
@@ -167,8 +167,8 @@
                 (when (process-buffer proc)
                   (kill-buffer (process-buffer proc)))
                 (if (alist-get 'error data)
-                    (cons nil (alist-get 'error data))
-                  (cons (alist-get 'result data) nil)))
+                    (error "Extension error: %S" (alist-get 'error data))
+                  (alist-get 'result data)))
             (error "Native socket timeout")))
       (delete-process proc))))
 
@@ -488,8 +488,8 @@
   (webdriver-bidi-test-with-setup
    (let ((result (webdriver-bidi-test-send "browsingContext.getTree"
                                            '((maxDepth . 0)))))
-     (should (car result))
-     (should (alist-get 'contexts (car result))))))
+     (should result)
+     (should (alist-get 'contexts result)))))
 
 (ert-deftest webdriver-bidi-test-extension-create ()
   "Test opening a tab to google.com and verifying it exists."
@@ -499,11 +499,11 @@
   (webdriver-bidi-test-with-setup
    (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
                                                    '((type . "tab"))))
-          (context (alist-get 'context (car create-result))))
-     (let* ((tree (webdriver-bidi-test-send "browsingContext.getTree"))
-            (contexts (alist-get 'contexts (car tree)))
-            (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
-       (should (= (length urls) 2)))
+          (context (alist-get 'context create-result))
+          (tree (webdriver-bidi-test-send "browsingContext.getTree"))
+          (contexts (alist-get 'contexts tree))
+          (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
+     (should (= (length urls) 2))
      (webdriver-bidi-test-send "browsingContext.close"
                                `((context . ,context))))))
 
@@ -515,13 +515,13 @@
   (webdriver-bidi-test-with-setup
    (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
                                                    '((type . "tab"))))
-          (context (alist-get 'context (car create-result))))
+          (context (alist-get 'context create-result)))
      (webdriver-bidi-test-send "browsingContext.navigate"
                                `((context . ,context)
                                  (url . "https://www.google.com")
                                  (wait . "complete")))
      (let* ((tree (webdriver-bidi-test-send "browsingContext.getTree"))
-            (contexts (alist-get 'contexts (car tree)))
+            (contexts (alist-get 'contexts tree))
             (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
        (should (= (length urls) 2))
        ;; XXX: Since the tab has not been activated, it's still read as
@@ -537,12 +537,12 @@
                  (and (eq webdriver-bidi-test-mode 'extension)
                       (not webdriver-bidi-test-ext-client))))
   (webdriver-bidi-test-with-setup
-   (let* ((tab1 (alist-get 'context (car (webdriver-bidi-test-send
-                                          "browsingContext.create"
-                                          '((type . "tab"))))))
-          (tab2 (alist-get 'context (car (webdriver-bidi-test-send
-                                          "browsingContext.create"
-                                          '((type . "tab")))))))
+   (let* ((tab1 (alist-get 'context (webdriver-bidi-test-send
+                                     "browsingContext.create"
+                                     '((type . "tab")))))
+          (tab2 (alist-get 'context (webdriver-bidi-test-send
+                                     "browsingContext.create"
+                                     '((type . "tab"))))))
      (webdriver-bidi-test-send "browsingContext.activate"
                                `((context . ,tab2)))
      ;; Clean up
