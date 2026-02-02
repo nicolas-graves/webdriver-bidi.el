@@ -172,12 +172,21 @@
             (error "Native socket timeout")))
       (delete-process proc))))
 
-(defun webdriver-bidi-test-ext-send (method &optional params)
-  "Send METHOD with PARAMS using current test mode."
+(defvar webdriver-bidi-test-mode 'bidi
+  "Test mode: 'bidi, 'extension, or 'native.")
+
+(defmacro webdriver-bidi-test-with-setup (&rest body)
+  "Wrap BODY with appropriate setup for current mode."
+  `(pcase webdriver-bidi-test-mode
+     ('bidi (webdriver-bidi-test-bidi-with-session ,@body))
+     (_ (progn ,@body))))
+
+(defun webdriver-bidi-test-send (method &optional params)
+  "Unified send for all modes."
   (pcase webdriver-bidi-test-mode
+    ('bidi (webdriver-bidi-test-bidi-send method params))
     ('native (webdriver-bidi-test-native--send method params))
-    ('extension (webdriver-bidi-test-ext--send-ws method params))
-    (_ (webdriver-bidi-test-ext--send-ws method params))))
+    ('extension (webdriver-bidi-test-ext--send-ws method params))))
 
 ;;; ===========================================================================
 ;;; Connection Tests
@@ -185,20 +194,20 @@
 
 (ert-deftest webdriver-bidi-test-connect ()
   "Test basic BiDi connection."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-bidi-with-connection
    (should webdriver-bidi-test-bidi-conn)
    (should (webdriver-bidi-open-p webdriver-bidi-test-bidi-conn))))
 
 (ert-deftest webdriver-bidi-test-connect-invalid-url ()
   "Test BiDi connection to invalid URL fails gracefully."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (should-error
    (webdriver-bidi-connect-sync "ws://localhost:99999/invalid" 2)))
 
 (ert-deftest webdriver-bidi-test-close ()
   "Test BiDi connection close."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-bidi-with-connection
    (should (webdriver-bidi-open-p webdriver-bidi-test-bidi-conn))
    (webdriver-bidi-close webdriver-bidi-test-bidi-conn)
@@ -212,18 +221,18 @@
 
 (ert-deftest webdriver-bidi-test-session-status ()
   "Test session.status command."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-bidi-with-connection
-   (let ((result (webdriver-bidi-test-bidi-send "session.status")))
+   (let ((result (webdriver-bidi-test-send "session.status")))
      (should result)
      (should (alist-get 'ready result)))))
 
 (ert-deftest webdriver-bidi-test-session-new-and-end ()
   "Test creating and ending a BiDi session."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-bidi-with-connection
    ;; Create session
-   (let ((result (webdriver-bidi-test-bidi-send
+   (let ((result (webdriver-bidi-test-send
                   "session.new"
                   `((capabilities . ((alwaysMatch . ,(make-hash-table))))))))
      (should result)
@@ -231,7 +240,7 @@
      (oset webdriver-bidi-test-bidi-conn session-id (alist-get 'sessionId result))
      (should (oref webdriver-bidi-test-bidi-conn session-id)))
    ;; End session
-   (webdriver-bidi-test-bidi-send "session.end")
+   (webdriver-bidi-test-send "session.end")
    (oset webdriver-bidi-test-bidi-conn session-id nil)
    (should-not (oref webdriver-bidi-test-bidi-conn session-id))))
 
@@ -241,33 +250,33 @@
 
 (ert-deftest webdriver-bidi-test-get-tree ()
   "Test browsingContext.getTree command."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
-   (let ((result (webdriver-bidi-test-bidi-send "browsingContext.getTree"
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
+   (let ((result (webdriver-bidi-test-send "browsingContext.getTree"
                                                 '((maxDepth . 0)))))
      (should result)
      (should (alist-get 'contexts result)))))
 
 (ert-deftest webdriver-bidi-test-create-and-close-context ()
   "Test creating and closing a browsing context."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    ;; Create new tab
-   (let* ((result (webdriver-bidi-test-bidi-send "browsingContext.create"
-                                                 '((type . "tab"))))
+   (let* ((result (webdriver-bidi-test-send "browsingContext.create"
+                                            '((type . "tab"))))
           (context (alist-get 'context result)))
      (should context)
      ;; Close it
-     (webdriver-bidi-test-bidi-send "browsingContext.close"
-                                    `((context . ,context))))))
+     (webdriver-bidi-test-send "browsingContext.close"
+                               `((context . ,context))))))
 
 (ert-deftest webdriver-bidi-test-navigate ()
   "Test browsingContext.navigate command."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context)))
      (should context)
-     (let ((result (webdriver-bidi-test-bidi-send
+     (let ((result (webdriver-bidi-test-send
                     "browsingContext.navigate"
                     `((context . ,context)
                       (url . "about:blank")
@@ -277,11 +286,11 @@
 
 (ert-deftest webdriver-bidi-test-navigate-to-url ()
   "Test navigation to a real URL."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context)))
      (should context)
-     (let ((result (webdriver-bidi-test-bidi-send
+     (let ((result (webdriver-bidi-test-send
                     "browsingContext.navigate"
                     `((context . ,context)
                       (url . "https://example.com")
@@ -295,17 +304,17 @@
 
 (ert-deftest webdriver-bidi-test-script-evaluate ()
   "Test script.evaluate command."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context)))
      (should context)
      ;; Navigate first to have a proper context
-     (webdriver-bidi-test-bidi-send "browsingContext.navigate"
+     (webdriver-bidi-test-send "browsingContext.navigate"
                                     `((context . ,context)
                                       (url . "about:blank")
                                       (wait . "complete")))
      ;; Evaluate script
-     (let ((result (webdriver-bidi-test-bidi-send
+     (let ((result (webdriver-bidi-test-send
                     "script.evaluate"
                     `((target . ((context . ,context)))
                       (expression . "1 + 1")
@@ -318,14 +327,14 @@
 
 (ert-deftest webdriver-bidi-test-script-evaluate-string ()
   "Test script.evaluate with string result."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context)))
-     (webdriver-bidi-test-bidi-send "browsingContext.navigate"
-                                    `((context . ,context)
-                                      (url . "about:blank")
-                                      (wait . "complete")))
-     (let ((result (webdriver-bidi-test-bidi-send
+     (webdriver-bidi-test-send "browsingContext.navigate"
+                               `((context . ,context)
+                                 (url . "about:blank")
+                                 (wait . "complete")))
+     (let ((result (webdriver-bidi-test-send
                     "script.evaluate"
                     `((target . ((context . ,context)))
                       (expression . "'hello' + ' world'")
@@ -337,15 +346,15 @@
 
 (ert-deftest webdriver-bidi-test-script-evaluate-dom ()
   "Test script.evaluate accessing DOM."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context)))
      ;; Navigate to example.com for real DOM
-     (webdriver-bidi-test-bidi-send "browsingContext.navigate"
-                                    `((context . ,context)
-                                      (url . "https://example.com")
-                                      (wait . "complete")))
-     (let ((result (webdriver-bidi-test-bidi-send
+     (webdriver-bidi-test-send "browsingContext.navigate"
+                               `((context . ,context)
+                                 (url . "https://example.com")
+                                 (wait . "complete")))
+     (let ((result (webdriver-bidi-test-send
                     "script.evaluate"
                     `((target . ((context . ,context)))
                       (expression . "document.title")
@@ -362,18 +371,18 @@
 
 (ert-deftest webdriver-bidi-test-subscribe ()
   "Test session.subscribe command."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
-   (let ((result (webdriver-bidi-test-bidi-send
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
+   (let ((result (webdriver-bidi-test-send
                   "session.subscribe"
                   '((events . ("browsingContext.load"))))))
      (should result))))
 
 (ert-deftest webdriver-bidi-test-subscribe-multiple ()
   "Test subscribing to multiple events."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
-   (let ((result (webdriver-bidi-test-bidi-send
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
+   (let ((result (webdriver-bidi-test-send
                   "session.subscribe"
                   '((events . ("browsingContext.load"
                                "browsingContext.domContentLoaded"
@@ -386,8 +395,8 @@
 
 (ert-deftest webdriver-bidi-test-high-level-get-tabs ()
   "Test high-level get-tabs function."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((done nil)
          (tabs nil))
      (webdriver-bidi-get-tabs
@@ -400,8 +409,8 @@
 
 (ert-deftest webdriver-bidi-test-high-level-navigate ()
   "Test high-level navigate function."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((context (webdriver-bidi-test-bidi-get-context))
          (done nil)
          (result nil))
@@ -420,7 +429,7 @@
 
 (ert-deftest webdriver-bidi-test-invalid-method ()
   "Test that invalid method returns error."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-bidi-with-connection
    (let ((response (webdriver-bidi-send-sync
                     webdriver-bidi-test-bidi-conn
@@ -431,8 +440,8 @@
 
 (ert-deftest webdriver-bidi-test-invalid-context ()
   "Test navigation with invalid context returns error."
-  :tags '(:bidi)
-  (webdriver-bidi-test-bidi-with-session
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
+  (webdriver-bidi-test-with-setup
    (let ((response (webdriver-bidi-send-sync
                     webdriver-bidi-test-bidi-conn
                     "browsingContext.navigate"
@@ -447,7 +456,7 @@
 
 (ert-deftest webdriver-bidi-test-command-queue ()
   "Test that commands are queued before connection opens."
-  :tags '(:bidi)
+  (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (let* ((webdriver-bidi-debug t)
          (results '())
          (conn (webdriver-bidi-connect
@@ -473,67 +482,72 @@
 
 (ert-deftest webdriver-bidi-test-extension-get-tabs ()
   "Test getting tabs via WebSocket extension."
-  :tags '(:extension)
-  (let ((result (webdriver-bidi-test-ext-send "browsingContext.getTree"
-                                              '((maxDepth . 0)))))
-    (message "create-result: %S" result)
-    (should (car result))
-    (should (alist-get 'contexts (car result)))))
+  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
+                 (and (eq webdriver-bidi-test-mode 'extension)
+                      (not webdriver-bidi-test-ext-client))))
+  (webdriver-bidi-test-with-setup
+   (let ((result (webdriver-bidi-test-send "browsingContext.getTree"
+                                           '((maxDepth . 0)))))
+     (should (car result))
+     (should (alist-get 'contexts (car result))))))
 
 (ert-deftest webdriver-bidi-test-extension-create ()
   "Test opening a tab to google.com and verifying it exists."
-  :tags '(:extension)
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (let* ((create-result (webdriver-bidi-test-ext-send "browsingContext.create"
-                                                      '((type . "tab"))))
-         (context (alist-get 'context (car create-result))))
-    (let* ((tree (webdriver-bidi-test-ext-send "browsingContext.getTree"))
-           (contexts (alist-get 'contexts (car tree)))
-           (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
-      (should (= (length urls) 2)))
-    (webdriver-bidi-test-ext-send "browsingContext.close"
-                                  `((context . ,context)))))
+  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
+                 (and (eq webdriver-bidi-test-mode 'extension)
+                      (not webdriver-bidi-test-ext-client))))
+  (webdriver-bidi-test-with-setup
+   (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
+                                                   '((type . "tab"))))
+          (context (alist-get 'context (car create-result))))
+     (let* ((tree (webdriver-bidi-test-send "browsingContext.getTree"))
+            (contexts (alist-get 'contexts (car tree)))
+            (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
+       (should (= (length urls) 2)))
+     (webdriver-bidi-test-send "browsingContext.close"
+                               `((context . ,context))))))
 
 (ert-deftest webdriver-bidi-test-extension-navigate-and-verify ()
   "Test opening a tab to google.com and verifying it exists."
-  :tags '(:extension)
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (let* ((create-result (webdriver-bidi-test-ext-send "browsingContext.create"
-                                                      '((type . "tab"))))
-         (context (alist-get 'context (car create-result))))
-    (webdriver-bidi-test-ext-send "browsingContext.navigate"
-                                  `((context . ,context)
-                                    (url . "https://www.google.com")
-                                    (wait . "complete")))
-    (let* ((tree (webdriver-bidi-test-ext-send "browsingContext.getTree"))
-           (contexts (alist-get 'contexts (car tree)))
-           (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
-      (should (= (length urls) 2))
-      ;; XXX: Since the tab has not been activated, it's still read as
-      ;; about:newtab
-      ;; (should (seq-some (lambda (u) (string-match-p "google" u)) urls))
-      )
-    (webdriver-bidi-test-ext-send "browsingContext.close"
-                                  `((context . ,context)))))
+  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
+                 (and (eq webdriver-bidi-test-mode 'extension)
+                      (not webdriver-bidi-test-ext-client))))
+  (webdriver-bidi-test-with-setup
+   (let* ((create-result (webdriver-bidi-test-send "browsingContext.create"
+                                                   '((type . "tab"))))
+          (context (alist-get 'context (car create-result))))
+     (webdriver-bidi-test-send "browsingContext.navigate"
+                               `((context . ,context)
+                                 (url . "https://www.google.com")
+                                 (wait . "complete")))
+     (let* ((tree (webdriver-bidi-test-send "browsingContext.getTree"))
+            (contexts (alist-get 'contexts (car tree)))
+            (urls (mapcar (lambda (c) (alist-get 'url c)) contexts)))
+       (should (= (length urls) 2))
+       ;; XXX: Since the tab has not been activated, it's still read as
+       ;; about:newtab
+       ;; (should (seq-some (lambda (u) (string-match-p "google" u)) urls))
+       )
+     (webdriver-bidi-test-send "browsingContext.close"
+                               `((context . ,context))))))
 
 (ert-deftest webdriver-bidi-test-extension-activate-tab ()
   "Test opening two tabs and activating the second."
-  :tags '(:extension)
-  (skip-when (and (eq webdriver-bidi-test-mode 'extension)
-                  (not webdriver-bidi-test-ext-client)))
-  (let* ((tab1 (alist-get 'context (car (webdriver-bidi-test-ext-send
-                                         "browsingContext.create"
-                                         '((type . "tab"))))))
-         (tab2 (alist-get 'context (car (webdriver-bidi-test-ext-send
-                                         "browsingContext.create"
-                                         '((type . "tab")))))))
-    (webdriver-bidi-test-ext-send "browsingContext.activate"
-                                  `((context . ,tab2)))
-    ;; Clean up
-    (webdriver-bidi-test-ext-send "browsingContext.close" `((context . ,tab1)))
-    (webdriver-bidi-test-ext-send "browsingContext.close" `((context . ,tab2)))))
+  (skip-when (or (eq webdriver-bidi-test-mode 'bidi)
+                 (and (eq webdriver-bidi-test-mode 'extension)
+                      (not webdriver-bidi-test-ext-client))))
+  (webdriver-bidi-test-with-setup
+   (let* ((tab1 (alist-get 'context (car (webdriver-bidi-test-send
+                                          "browsingContext.create"
+                                          '((type . "tab"))))))
+          (tab2 (alist-get 'context (car (webdriver-bidi-test-send
+                                          "browsingContext.create"
+                                          '((type . "tab")))))))
+     (webdriver-bidi-test-send "browsingContext.activate"
+                               `((context . ,tab2)))
+     ;; Clean up
+     (webdriver-bidi-test-send "browsingContext.close" `((context . ,tab1)))
+     (webdriver-bidi-test-send "browsingContext.close" `((context . ,tab2))))))
 
 (provide 'webdriver-bidi-test)
 ;;; webdriver-bidi-test.el ends here

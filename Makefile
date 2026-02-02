@@ -106,8 +106,9 @@ test:
 		-l websocket \
 		-l webdriver-bidi.el \
 		-l webdriver-bidi-test.el \
+		--eval "(setq webdriver-bidi-test-mode 'bidi)" \
 		--eval "(setq webdriver-bidi-test-url \"$(BIDI_URL)\")" \
-		--eval "(ert-run-tests-batch-and-exit '(tag :bidi))"
+		-f ert-run-tests-batch-and-exit
 
 # Firefox support
 start-firefox:
@@ -166,7 +167,7 @@ test-ws: start-firefox-ws
 		--eval "(setq webdriver-bidi-test-mode 'extension)" \
 		--eval "(webdriver-bidi-test-ext-start-server)" \
 		--eval "(sleep-for 3)" \
-		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
+		-f ert-run-tests-batch-and-exit
 	@$(MAKE) stop-firefox
 
 test-native: start-firefox-native
@@ -179,7 +180,7 @@ test-native: start-firefox-native
 		-l webdriver-bidi-test.el \
 		--eval "(setq webdriver-bidi-test-mode 'native)" \
 		--eval "(sleep-for 3)" \
-		--eval "(ert-run-tests-batch-and-exit '(tag :extension))"
+		-f ert-run-tests-batch-and-exit
 	@$(MAKE) stop-firefox
 
 clean:
