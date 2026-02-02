@@ -69,7 +69,7 @@
       (error "BiDi error: %S" (cdr response)))
     (car response)))
 
-(defun webdriver-bidi-test-bidi-get-context ()
+(defun webdriver-bidi-test-get-context ()
   "Get first available browsing context via BiDi."
   (let* ((result (webdriver-bidi-test-bidi-send "browsingContext.getTree"
                                                 '((maxDepth . 0))))
@@ -273,7 +273,7 @@
   "Test browsingContext.navigate command."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context)))
+   (let ((context (webdriver-bidi-test-get-context)))
      (should context)
      (let ((result (webdriver-bidi-test-send
                     "browsingContext.navigate"
@@ -287,7 +287,7 @@
   "Test navigation to a real URL."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context)))
+   (let ((context (webdriver-bidi-test-get-context)))
      (should context)
      (let ((result (webdriver-bidi-test-send
                     "browsingContext.navigate"
@@ -305,7 +305,7 @@
   "Test script.evaluate command."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context)))
+   (let ((context (webdriver-bidi-test-get-context)))
      (should context)
      ;; Navigate first to have a proper context
      (webdriver-bidi-test-send "browsingContext.navigate"
@@ -328,7 +328,7 @@
   "Test script.evaluate with string result."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context)))
+   (let ((context (webdriver-bidi-test-get-context)))
      (webdriver-bidi-test-send "browsingContext.navigate"
                                `((context . ,context)
                                  (url . "about:blank")
@@ -347,7 +347,7 @@
   "Test script.evaluate accessing DOM."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context)))
+   (let ((context (webdriver-bidi-test-get-context)))
      ;; Navigate to example.com for real DOM
      (webdriver-bidi-test-send "browsingContext.navigate"
                                `((context . ,context)
@@ -410,7 +410,7 @@
   "Test high-level navigate function."
   (skip-unless (eq webdriver-bidi-test-mode 'bidi))
   (webdriver-bidi-test-with-setup
-   (let ((context (webdriver-bidi-test-bidi-get-context))
+   (let ((context (webdriver-bidi-test-get-context))
          (done nil)
          (result nil))
      (webdriver-bidi-navigate
